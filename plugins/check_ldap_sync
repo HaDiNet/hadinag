@@ -1,0 +1,40 @@
+#!/bin/bash
+
+LDAP_MASTER=$1
+LDAP_SLAVE=$2
+LDAP_USER=$3
+LDAP_PW=$4
+
+# checks the sync cookie for the specified server
+function check_cookie()
+{
+	ldapsearch -h $1 -b "dc=hadiko,dc=de" -s base -x -D $LDAP_USER -w $LDAP_PW "" "contextCSN" 2>/dev/null \
+	       | grep "#001#" \
+	       | sed "s/contextCSN: //"
+}
+
+if [ -z $LDAP_MASTER ] ||[ -z $LDAP_SLAVE ] ||[ -z $LDAP_USER ] ||[ -z $LDAP_PW ];then
+	echo "Usage: $0 LDAP_MASTER LDAP_SLAVE LDAP_USER LDAP_PW"
+	exit 3;
+else
+
+	masterCookie=$(check_cookie $LDAP_MASTER)
+	slaveCookie=$(check_cookie  $LDAP_SLAVE )
+	
+	if [ "$masterCookie" == "" ]; then
+		echo "CRITICAL - master down"
+		exit 2;
+	fi
+	if [ "$slaveCookie" == "" ]; then
+		echo "CRITICAL - slave down"
+		exit 2;
+	fi
+	if [ "$masterCookie" == "$slaveCookie" ]; then
+		echo "OK -  Current Sync Cookie: $masterCookie"
+		exit 0;
+	else
+		echo "WARNING - Different Sync Cookie: $masterCookie <> $slaveCookie"
+		exit 1;
+	fi
+fi
+
