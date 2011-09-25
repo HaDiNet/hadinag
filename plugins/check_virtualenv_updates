@@ -1,0 +1,76 @@
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+#
+# Usage: check_virtualenv_updates path_to_virtualenv
+
+PYPI_MIRROR_HOST = 'pypi.hadiko.de'
+PYPI_MIRROR_PATH = '/simple/'
+
+# Load some core python libraries that are "local" to the interpreter
+import httplib
+import os.path
+import re
+import sys
+
+# Load virtualenv
+virtualenv = sys.argv[1]
+activate_script = os.path.join(virtualenv, 'bin', 'activate_this.py')
+execfile(activate_script, dict(__file__=activate_script))
+
+# Load yolk library from the virtualenv
+from yolk.metadata import get_metadata
+from yolk.yolklib import Distributions
+
+# Load Version library from distutils
+from distutils.version import LooseVersion as V
+
+
+def get_latest_version(http, pkg_metadata):
+    "Get the latest version of a package, respect its current installed version"
+    pkg_name = pkg_metadata['Name']
+    http.request('GET', PYPI_MIRROR_PATH + pkg_name + '/')
+    response = http.getresponse()
+    data = response.read()
+    matches = []
+    matches += re.findall(r"(?<=\>)(\S+?) home_page", data)
+    matches += re.findall(r"(?<=\>)(\S+?) download_url", data)
+    matches += re.findall("%s-(\S+?)\.tar\.gz" % pkg_name, data)
+    versions = [V(pkg_metadata['Version'])]
+    IGNORE_PATTERNS = ['rc', 'b', 'c']
+    # TODO Remove e.g. rc from IGNORE_PATTERNS if current version is a rc too
+    for match in matches:
+        if any(x in match for x in IGNORE_PATTERNS):
+            continue
+        else:
+            versions.append(V(match))
+    versions.sort()
+    return versions[-1]
+
+# Connect to PyPI
+http = httplib.HTTPConnection(PYPI_MIRROR_HOST)
+
+# Get all installed packages
+requires_update = []
+failed_info = []
+dists = Distributions()
+for (dist, active) in dists.get_distributions("active"):
+    metadata = get_metadata(dist)
+    if virtualenv in dist.location:
+        if metadata:
+            if V(metadata['Version']) != get_latest_version(http, metadata):
+                requires_update.append(metadata['Name'])
+        else:
+            failed_info.append(str(dist))
+
+http.close()
+
+# Output status of virtualenv for Nagios
+if len(requires_update) > 0:
+    print "CRITICAL - Updates required for packages: %s" % ' ,'.join(requires_update)
+    sys.exit(2)
+elif len(failed_info) > 0:
+    print "WARNING - Cannot get metadate for packages: %s" % ' ,'.join(failed_info)
+    sys.exit(1)
+else:
+    print "OK - All updates installed"
+    sys.exit(0)
