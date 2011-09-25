@@ -66,10 +66,10 @@ http.close()
 
 # Output status of virtualenv for Nagios
 if len(requires_update) > 0:
-    print "CRITICAL - Updates required for packages: %s" % ' ,'.join(requires_update)
+    print "CRITICAL - Updates required for packages: %s" % ', '.join(requires_update)
     sys.exit(2)
 elif len(failed_info) > 0:
-    print "WARNING - Cannot get metadate for packages: %s" % ' ,'.join(failed_info)
+    print "WARNING - Cannot get metadate for packages: %s" % ', '.join(failed_info)
     sys.exit(1)
 else:
     print "OK - All updates installed"
