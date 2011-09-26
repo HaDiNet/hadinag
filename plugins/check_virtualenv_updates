@@ -36,7 +36,7 @@ def get_latest_version(http, pkg_metadata):
     matches += re.findall(r"(?<=\>)(\S+?) download_url", data)
     matches += re.findall("%s-(\S+?)\.tar\.gz" % pkg_name, data)
     versions = [V(pkg_metadata['Version'])]
-    IGNORE_PATTERNS = ['rc', 'b', 'c']
+    IGNORE_PATTERNS = ['rc', 'b', 'c', 'dev', 'alpha']
     # TODO Remove e.g. rc from IGNORE_PATTERNS if current version is a rc too
     for match in matches:
         if any(x in match for x in IGNORE_PATTERNS):
