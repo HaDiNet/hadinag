@@ -1,0 +1,36 @@
+#!/bin/bash
+
+if [ $# -ne 1 ]; then
+	echo "check if a git repo is behind upstream"
+	echo "Usage:"
+	echo " $0 GIT_REPO"
+	echo ""
+	echo " GIT_REPO: path of git repo"
+	exit 0
+fi
+
+GIT_REPO=$1
+
+TMPDIR=`mktemp -d /tmp/git-tmp.XXXXXX` || exit 4
+
+pushd "$TMPDIR" >/dev/null || exit 4
+
+cp -r $GIT_REPO . || exit 4
+cd *
+git fetch 2>/dev/null
+COMMIT_COUNT=$( git log --oneline master..origin/master | wc -l )
+
+popd >/dev/null
+
+rm -rf "$TMPDIR"
+
+
+if [ "$COMMIT_COUNT" -eq 0 ]; then
+	echo "OK - git repo $GIT_REPO is up to date"
+	exit 0
+else
+	echo "WARNING - git repo $GIT_REPO is $COMMIT_COUNT commit(s) behind upstream"
+	exit 1
+fi
+
+
